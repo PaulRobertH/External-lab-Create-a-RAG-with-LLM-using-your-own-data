@@ -97,7 +97,7 @@ def main():
     data = load_data()
     encoder = SentenceTransformer(EMBED_MODEL)
     client = build_index(data, encoder)
-    llm = OpenAI(base_url=LLM_BASE_URL, api_key="sk-no-key-required")
+    llm = OpenAI()
     print(f"Indexed {len(data)} wines. Ask away (Ctrl-C to quit).\n")
 
     if len(sys.argv) > 1:
