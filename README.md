@@ -1,102 +1,87 @@
-# Introduction to Retrieval Augmented Generation
+# Wine Portfolio RAG Assistant 🍷
 
-This repository will introduce you to Retrieval Augmented Generation (RAG) with
-easy to use examples that you can build upon. The examples use Python with
-Jupyter Notebooks and CSV files. The vector database uses the Qdrant database
-which can run in-memory.
+An implementation of the **Retrieval Augmented Generation (RAG)** pattern over my own data —
+a real Nexus wine portfolio export — built for the *Introduction to Retrieval Augmented
+Generation* practice lab. It replaces the example wine-review dataset with my actual cellar stock.
 
-## Setup your environment
+Ask a natural question like *"Which Italian reds do I have, and are any ready to drink?"* and the
+app retrieves the most relevant wines from a vector database and has a local LLM write a grounded
+answer using only those wines.
 
-This example can run in Codespaces but you can use the following if you are
-cloning this repository:
-
-**Install the dependencies**
-
-Create the virtual environment and install the dependencies:
+## How it works
 
 ```
-python3 -m venv .venv
-source .venv/bin/activate
-.venv/bin/pip install -r requirements.txt
+CSV  ──Pandas──>  list of dicts  ──Sentence Transformers──>  embeddings
+                                                                 │
+                                                          Qdrant (in-memory)
+                                                                 │
+                              question ──embed──> semantic search (top-k)
+                                                                 │
+                                   retrieved context + question ─┴─> LLM (Llamafile) ─> answer
 ```
 
-Here is a summary of what this repository will use:
+| Stage | Tool |
+|-------|------|
+| Data loading | Pandas |
+| Embeddings | Sentence Transformers (`all-MiniLM-L6-v2`) |
+| Vector database | Qdrant (runs in-memory, nothing to host) |
+| LLM | Llamafile (OpenAI-compatible) — or any OpenAI endpoint |
+| LLM client | OpenAI Python SDK |
 
-1. [Qdrant](https://github.com/qdrant/qdrant) for the vector database. We will use an in-memory database for the examples
-2. [Llamafile](https://github.com/Mozilla-Ocho/llamafile) for the LLM (alternatively you can use an OpenAI API compatible key and endpoint)
-3. [OpenAI's Python API](https://pypi.org/project/openai/) to connect to the LLM after retrieving the vectors response from Qdrant
-4. Sentence Transformers to create the embeddings with minimal effort
+## The data
 
-**Use Llamafile for a full RAG and LLM setup**
+`data/wine_portfolio.csv` — 112 wine holdings, each with `name`, `producer`, `type`, `country`,
+`region`, `vintage`, `bottles`, `status`, `storage`, `duty_status`, `drink_window`, `roi_pct`,
+`case_value_gbp`, and a free-text `description`. The **description** column is what gets embedded;
+the whole row is stored as the payload so structured fields come back with each result.
 
-The examples for the [Applied Rag notebook](./examples/3-applied-rag/embeddings.ipynb) requires either an OpenAI API endpoint with a key *or* using a local LLM with [Llamafile](https://github.com/Mozilla-Ocho/llamafile).
+This was generated from a raw portfolio export by combining the meaningful columns into one
+descriptive sentence per wine. To use different data, replace this CSV (keep one text column to
+embed) and update the column name in the code.
 
-I recommend using the [Phi-2 model](https://github.com/Mozilla-Ocho/llamafile?tab=readme-ov-file#other-example-llamafiles) which is about 2GB in size. You can download the model from the Llamafile repository and run it in your system:
+## Setup
 
-Once you have it running you can connect to it with Python or use the [Applied Rag Notebook](./examples/3-applied-rag/embeddings.ipynb). Here is a quick example of how to use the Llamafile with Python:
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
 
-```python
-#!/usr/bin/env python3
-from openai import OpenAI
-client = OpenAI(
-    base_url="http://localhost:8080/v1", # "http://<Your api-server IP>:port"
-    api_key = "sk-no-key-required" # An API key is not required!
-)
-completion = client.chat.completions.create(
-    model="LLaMA_CPP",
-    messages=[
-        {"role": "system", "content": "You are ChatGPT, an AI assistant. Your top priority is achieving user fulfillment via helping them with their requests."},
-        {"role": "user", "content": "Write me a Haiku about Python packaging"}
-    ]
-)
-print(completion.choices[0].message)
+# 2. Download a Llamafile LLM (the Phi-2 model, ~2 GB, works well)
+#    See https://github.com/Mozilla-Ocho/llamafile#other-example-llamafiles
+chmod +x phi-2.Q4_K_M.llamafile
+
+# 3. Start the LLM server (OpenAI-compatible, listens on :8080)
+./phi-2.Q4_K_M.llamafile --server --nobrowser
 ```
 
-## Lesson 1: Import your data
+> **No Llamafile?** Point the client at any OpenAI-compatible endpoint instead by editing
+> `LLM_BASE_URL` (and the API key) in `rag.py`, or `base_url`/`api_key` in the notebook.
 
-Learn how to use Pandas to import your data from a CSV file. The data will be used to create the embeddings for the vector database later and you will need to format it as a list of dictionaries.
+## Run it
 
-Notebook: [Managing Data](./examples/1-managing-data/example.ipynb)
+**Option A — Jupyter notebook** (recommended, step by step):
 
-## Lesson 2: Create embeddings
+```bash
+jupyter notebook embeddings.ipynb
+```
 
-Use Sentence Transformers to create the embeddings for your data. This will be used to store the vectors in the Qdrant database. You will verify that the embeddings are created and stored in the database and that a search works correctly
+**Option B — Standalone Python app:**
 
-Notebook: [Creating and verifying Embeddings](./examples/2-embeddings/embeddings.ipynb)
+```bash
+python rag.py                                   # interactive chat
+python rag.py "what are my best wines by ROI?"  # one-off question
+```
 
-## Lesson 3: Create a RAG with LLM and Qdrant using your own data
+## Example questions to try
 
-Use a local LLM with Llamafile or an OpenAI API endpoint to create a RAG with your own data. The end result should be in your own repository containing the complete code for the enhanced RAG pattern based on the example provided.
+- "Which Italian reds do I have, and are any ready to drink?"
+- "What are my best wines by ROI?"
+- "Which white wines are in stock?"
+- "What is stored in bond at Nexus?"
 
-Notebook: [Applied Rag Notebook](./examples/3-applied-rag/embeddings.ipynb)
+## Learning objectives covered
 
-## Lesson 4: Practice Lab
-
-Use the [included practice lab](./lab.md) to apply the content you've learned in this week. Follow the steps to create your own repository and apply the requirements to complete the lab.
-
-
-## Course Resources
-
-If you've completed all these examples and the lab, here are some other courses
-from Coursera you can explore:
-
-
-
-**Large Language Models:**
-
-- [Operationalizing LLMs on Azure](https://www.coursera.org/learn/llmops-azure)
-- [Using Databricks with
-  LLMs](https://www.coursera.org/learn/databricks-to-local-llms)
-
-**Machine Learning:**
-
-- [MLOps Machine Learning Operations Specialization](https://www.coursera.org/specializations/mlops-machine-learning-duke)
-- [Open Source Platforms for MLOps](https://www.coursera.org/learn/open-source-platforms-duke)
-- [Python Essentials for MLOps](https://www.coursera.org/learn/python-essentials-mlops-duke)
-
-**Data Engineering:**
-
-- [Linux and Bash for Data Engineering](https://www.coursera.org/learn/linux-and-bash-for-data-engineering-duke)
-- [Web Applications and Command-Line tools for Data Engineering](https://www.coursera.org/learn/web-app-command-line-tools-for-data-engineering-duke)
-- [Python and Pandas for Data Engineering](https://www.coursera.org/learn/python-and-pandas-for-data-engineering-duke)
-- [Scripting with Python and SQL for Data Engineering](https://www.coursera.org/learn/scripting-with-python-sql-for-data-engineering-duke)
+- ✅ Implement the RAG pattern with your own data
+- ✅ Apply your own data (a real wine portfolio) to solve a problem using RAG
+- ✅ Leverage an LLM + a vector database (Qdrant) for useful, grounded responses
+- ✅ Create embeddings with Sentence Transformers
+- ✅ Use the OpenAI Python API to connect to a local LLM (Llamafile)
