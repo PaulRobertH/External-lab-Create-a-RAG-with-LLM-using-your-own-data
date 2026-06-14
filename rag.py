@@ -82,7 +82,7 @@ def generate(llm, question, context):
         f"Wine context (JSON):\n{json.dumps(context, indent=2)}"
     )
     completion = llm.chat.completions.create(
-        model="LLaMA_CPP",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
