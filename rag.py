@@ -22,7 +22,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from sentence_transformers import SentenceTransformer
 
-DATA_PATH = "data/wine_portfolio.csv"
+DATA_PATH = "wine_portfolio.csv"
 COLLECTION = "wine_portfolio"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 LLM_BASE_URL = "http://localhost:8080/v1"  # Llamafile / OpenAI-compatible server
